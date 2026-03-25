@@ -5,7 +5,6 @@ metadata:
     pipelinesascode.tekton.dev/max-keep-runs: "5"
     pipelinesascode.tekton.dev/on-event: "[push]"
     pipelinesascode.tekton.dev/on-target-branch: "[main]"
-    # [수정] git-cli 태스크를 추가해야 PaC가 자동으로 태스크를 가져옵니다.
     pipelinesascode.tekton.dev/task: "[git-clone, buildah, git-cli]"
   name: build-and-push
 spec:
@@ -14,17 +13,16 @@ spec:
     value: '{{ repo_url }}'
   - name: revision
     value: '{{ revision }}'
-  # [수정] 태그를 latest 대신 $(params.revision)으로 쓰는 것이 GitOps의 정석입니다.
   - name: image_url
-    value: "registry.ocp.test.com:5000/demo/test_project:$(params.revision)"
+    value: "registry.ocp.test.com:5000/demo/test_project:{{ revision }}"
   - name: gitops_repo_url
-    value: "https://github.com/soyoung1130/gitops_project"
+    value: "https://github.com/seejune2/gitops"
   pipelineSpec:
     params:
     - name: repo_url
     - name: revision
     - name: image_url
-    - name: gitops_repo_url # [추가] 하위 태스크로 전달하기 위해 명시
+    - name: gitops_repo_url
     tasks:
     - name: fetch-repository
       params:
@@ -53,8 +51,8 @@ spec:
       workspaces:
       - name: source
         workspace: source
-      - name: dockerconfig 
-        workspace: docker-config 
+      - name: dockerconfig
+        workspace: docker-config
 
     - name: update-gitops
       runAfter:
@@ -70,24 +68,27 @@ spec:
         value: |
           # 1. GitOps 레포 클론
           git clone $(params.gitops_repo_url) gitops-repo
-          cd gitops_project/overlays/dev
+          cd gitops-repo/overlays/dev
 
-          # 2. customization.yaml의 이미지 태그 수정
-          # base의 이미지를 새로운 태그로 덮어쓰도록 sed 실행
-          sed -i "s/newTag: .*/newTag: $(params.revision)/g" customization.yaml
+          # 2. kustomization.yaml의 이미지 태그 수정
+          sed -i "s/newTag: .*/newTag: $(params.revision)/g" kustomization.yaml
 
           # 3. 변경사항 커밋 및 푸시
           git config --global user.email "tekton@ocp.test.com"
           git config --global user.name "tekton-ci"
-          git add customization.yaml
+          git add kustomization.yaml
           git commit -m "chore: update image tag to $(params.revision) [skip ci]"
           git push origin main
       workspaces:
       - name: source
         workspace: source
-      - name: basic-auth # GitOps 레포 푸시 권한용
+      - name: basic-auth
         workspace: basic-auth
 
+    workspaces:
+    - name: source
+    - name: basic-auth
+    - name: docker-config
   workspaces:
   - name: source
     volumeClaimTemplate:
@@ -101,7 +102,7 @@ spec:
       secretName: '{{ git_auth_secret }}'
   - name: docker-config
     secret:
-      secretName: "gitsecret"
-      items: 
+      secretName: "my-registry-secret"
+      items:
         - key: .dockerconfigjson
           path: config.json
