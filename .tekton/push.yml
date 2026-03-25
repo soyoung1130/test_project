@@ -72,14 +72,14 @@ spec:
           git clone $(params.gitops_repo_url) gitops-repo
           cd gitops_project/overlays/dev
 
-          # 2. customization.yaml의 이미지 태그 수정
+          # 2. kustomization.yaml의 이미지 태그 수정
           # base의 이미지를 새로운 태그로 덮어쓰도록 sed 실행
-          sed -i "s/newTag: .*/newTag: $(params.revision)/g" customization.yaml
+          sed -i "s/newTag: .*/newTag: $(params.revision)/g" kustomization.yaml
 
           # 3. 변경사항 커밋 및 푸시
           git config --global user.email "tekton@ocp.test.com"
           git config --global user.name "tekton-ci"
-          git add customization.yaml
+          git add kustomization.yaml
           git commit -m "chore: update image tag to $(params.revision) [skip ci]"
           git push origin main
       workspaces:
