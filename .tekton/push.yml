@@ -101,7 +101,7 @@ spec:
       secretName: '{{ git_auth_secret }}'
   - name: docker-config
     secret:
-      secretName: "gitsecret"
+      secretName: "my-registry-secret"
       items: 
         - key: .dockerconfigjson
           path: config.json
